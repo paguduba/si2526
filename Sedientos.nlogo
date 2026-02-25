@@ -1,17 +1,18 @@
-turtles-own [velocidad sed vida]
+turtles-own [velocidad sed vida hijos]
 
-globals [movmax cria]
+globals [continuar]
 
 to create
 
   ca
   ask patches [set pcolor green]
+  reset-ticks
   charcos
   criaturas
 end
 
 to fin
-  set movmax 0
+  set continuar false
 end
 
 to charcos
@@ -42,10 +43,10 @@ to criaturas
 end
 
 to moverse
-  let c false
-  set movmax 300
+  let annio 60
+  set continuar true
 
-  while [movmax > 0][
+  while [continuar = true][
     ask turtles with [vida = true] [
       fd velocidad
       if (random 2) = 1 [rt random 360 + 10]
@@ -56,36 +57,50 @@ to moverse
       if sed <= 25 [set color grey]
       if sed <= 0 [set vida false set color black]
 
-
-      if count turtles-on  patch-here > 1 and cria <= 0 [set c true]
+      ifelse hijos = 0 [
+        let tortus other turtles-on patch-here
+        if count tortus > 1 and any? tortus with [hijos = 0] [
+          ask one-of tortus with [hijos = 0] [set hijos 5]
+          hijo
+        ]
+        set hijos 5
+      ]
+      [set hijos hijos - 1]
+      ;if count turtles-on  patch-here > 1 and cria <= 0 [set c true]
     ]
-    set movmax movmax - 1
-    if c = true [set c false hijo]
-    set cria cria - 1
+    if annio = 0 [
+      tick
+      set annio 60
+      ask turtles with [color = black] [die]
+      ask turtles with [color = orange] [set color red]
+    ]
+    set annio annio - 1
+    if count turtles = 0 [ set continuar false]
   ]
 end
 
 to hijo
-  crt 1[
+  hatch 1[
     set label who
     set color orange
     set velocidad ( random-float 3 )
     set sed (random 50) + 50
     set vida true
   ]
-  set cria 10
+  ;set cria 0
   print "NACE"
-  moverse
+  ;moverse
 end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
-490
-21
-999
-531
+806
+10
+1341
+546
 -1
 -1
-8.213115
+25.1
 1
 10
 1
@@ -95,10 +110,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--30
-30
--30
-30
+-10
+10
+-10
+10
 0
 0
 1
@@ -131,7 +146,7 @@ charcos_numero
 charcos_numero
 0
 40
-40.0
+39.0
 1
 1
 NIL
@@ -171,22 +186,22 @@ HORIZONTAL
 
 PLOT
 30
-292
-230
-442
+159
+737
+577
 plot 1
-NIL
-NIL
+anios
+tortugas
 0.0
 100.0
 0.0
-100.0
+10.0
 true
 false
 "" ""
 PENS
-"default" 1.0 0 -10141563 true "" "plot count turtles"
-"pen-1" 1.0 0 -7500403 true "" "plot count turtles with [ color black]"
+"pen-1" 1.0 0 -16710398 true "" "plot count turtles with [ color = black ]"
+"pen-2" 1.0 0 -3844592 true "" "plot count turtles with [color = orange]"
 
 @#$#@#$#@
 ## WHAT IS IT?
