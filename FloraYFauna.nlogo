@@ -1,13 +1,13 @@
-
 breed[ plantas planta]
 breed[ animales animal]
 
-animales-own [ energia velocidad alimento]
+animales-own [ energia velocidad alimento nivel]
 plantas-own[ nivel ]
 patches-own [ fertilidad semilla]
 
 to setup
   ca
+  reset-ticks
   ask patches [
     let aleatorio (random 3) ;0.- DESIERTO  1.- AGUA  2.- HIERBA
     ifelse aleatorio = 0
@@ -28,10 +28,43 @@ to setup
     ]
     set semilla false
   ]
-
   plant
   carni
   herbi
+
+   while [count animales > 0][
+    ask animales with [alimento = "c"] [
+      movimiento_c
+      ifelse nivel < 3
+      [
+        set nivel nivel + 0.01
+      ]
+      [
+        set shape "default"
+      ]
+    ]
+    ask animales with [alimento = "p"] [
+      movimiento_h
+      ifelse nivel < 3
+      [
+        set nivel nivel + 0.01
+      ]
+      [
+        set shape "default"
+      ]
+    ]
+    ask plantas with [nivel < 3] [
+      let inc 0
+      ask patch-here [set inc fertilidad]
+      set nivel nivel + (inc * multi_ferti)
+    ]; .005 .025
+    ask plantas with [nivel >= 3] [set color green - 2]
+    tick
+  ]
+
+
+
+
 end
 
 to plant
@@ -62,10 +95,10 @@ to carni
     set velocidad (random-float 1)
     set energia (random 200) + 200
     set alimento "c"
+    set nivel 3
   ]
-
-
 end
+
 to herbi
   crt n_herb [
     set breed animales
@@ -74,22 +107,78 @@ to herbi
     set velocidad (random-float 1) + 0.5
     set energia (random 200) + 100
     set alimento "p"
+    set nivel 3
   ]
+end
 
-  while [count animales > 0][
-    ask animales with [alimento = "c"] [cazar_a]
-    ask animales with [alimento = "p"] [comer_p]
-    ask plantas with [nivel < 3] [
-      let inc 0
-      ask patch-here [set inc fertilidad]
-      set nivel nivel + (inc * multi_ferti)
-    ]; .005 .025
-    ask plantas with [nivel >= 3] [set color green - 2]
+
+
+to movimiento_h
+  let peso 1
+  comer
+
+  if count animales-here with [alimento = "p" and nivel >= 3] > 2 [
+    reproducir ("p")
   ]
+  ask patch-here
+  [
+    if pcolor = yellow + 3
+    [
+      set peso 0.5
+    ]
+    if pcolor = blue + 3
+    [
+      set peso 0.2
+    ]
+  ]
+  ifelse nivel < 3 [
+    fd velocidad * peso * 1.3
+  ]
+  [
+    fd velocidad * peso
+  ]
+  set energia energia - 1
+
+  if energia < 50 [set color blue - 9]
+  if energia > 50 [set color blue - 2]
+  if energia <= 0 [die]
 
 end
 
-to comer_p
+to movimiento_c
+
+  let peso 1
+  cazar
+
+  if count animales-here with [alimento = "c" and nivel >= 3] > 2 [
+    reproducir ("c")
+  ]
+  ask patch-here
+  [
+    if pcolor = yellow + 3
+    [
+      set peso 0.5
+    ]
+    if pcolor = blue + 3
+    [
+      set peso 0.2
+    ]
+  ]
+  ifelse nivel < 3 [
+    fd velocidad * peso * 1.3
+  ]
+  [
+    fd velocidad * peso
+  ]
+  set energia energia - 1
+
+  if energia < 50 [set color red - 9]
+  if energia > 50 [set color red - 2]
+  if energia <= 0 [die]
+end
+
+
+to comer
   if count plantas-on patch-here > 0 [
     if any? plantas-here with[nivel >= 3] [
       ask plantas-on patch-here[crecer_p]
@@ -97,34 +186,22 @@ to comer_p
     ]
   ]
 
-  if count plantas with [nivel >= 3] in-cone 3 75 > 0
-  [face one-of plantas with [nivel >= 3] in-cone 3 75]
-
-  fd velocidad
-  set energia energia - 1
-  if energia < 50 [set color blue - 9]
-  if energia > 50 [set color blue - 2]
-  if energia <= 0 [die]
-end
-
-to cazar_a
-  let energ 0
-  if count animales-on patch-here > 1
-  [
-    if any? other animales-here with [alimento = "p"][
-    ask one-of other animales-here [die]
-    set energia energia + 100
-    ]
+  if count plantas with [nivel >= 3] in-cone 3 75 > 0 [
+    face one-of plantas with [nivel >= 3] in-cone 3 75
   ]
 
-  if count animales in-cone 3 75 with [alimento = "p"] > 0
-  [face one-of animales in-cone 3 75 with [alimento = "p"] ]
+end
 
-  fd velocidad
-  set energia energia - 1
-  if energia < 50 [set color red - 9]
-  if energia > 50 [set color red - 2]
-  if energia <= 0 [die]
+to cazar
+
+  if count animales-here with [alimento = "p" ]> 1[
+    ask one-of other animales-here [die]
+    set energia energia + 100
+  ]
+
+  if count animales in-cone 3 75 with [alimento = "p"] > 0[
+    face one-of animales in-cone 3 75 with [alimento = "p"]
+  ]
 end
 
 to crecer_p
@@ -138,16 +215,42 @@ to crecer_p
   die
 end
 
+to reproducir [ tipo ]
+  let carniv 0
+  if tipo = "c" [ set carniv (random 5)]
+
+
+  set energia energia + 20
+
+  set color yellow
+  set nivel 2
+  ask one-of other animales-here with [alimento = tipo ]
+  [
+    set energia energia + 20
+    set color yellow
+    set nivel 2
+  ]
+  hatch (random 4) + 2 + carniv [
+    set breed animales
+    set color yellow - 2
+    setxy pxcor pycor
+    set velocidad (random-float 1) + 0.5
+    set energia (random 200) + 100
+    set alimento tipo
+    set nivel 1
+    set shape "car"
+    ]
+end
 
 @#$#@#$#@
 GRAPHICS-WINDOW
-528
-12
-1094
-579
+915
+10
+1451
+547
 -1
 -1
-10.9412
+25.143
 1
 10
 1
@@ -157,10 +260,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--25
-25
--25
-25
+-10
+10
+-10
+10
 0
 0
 1
@@ -193,7 +296,7 @@ n_plantas
 n_plantas
 0
 100
-100.0
+16.0
 1
 1
 NIL
@@ -208,7 +311,7 @@ n_carn
 n_carn
 0
 100
-13.0
+21.0
 1
 1
 NIL
@@ -223,7 +326,7 @@ n_herb
 n_herb
 0
 100
-63.0
+21.0
 1
 1
 NIL
@@ -238,11 +341,30 @@ multi_ferti
 multi_ferti
 0
 10
-10.0
+1.0
 1
 1
 NIL
 HORIZONTAL
+
+PLOT
+32
+317
+700
+534
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count animales with [ alimento = \"c\"]"
+"pen-1" 1.0 0 -11221820 true "" "plot count animales with [ alimento = \"p\"]"
 
 @#$#@#$#@
 ## WHAT IS IT?
